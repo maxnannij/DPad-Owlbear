@@ -35,25 +35,46 @@
     <div class="empty"></div><button data-dy="1" aria-label="Abajo">▼</button><div class="empty"></div>
   </div>
   <div id="status">Conectando con Owlbear Rodeo…</div>
-  <div class="hint">Seleccioná primero tu personaje en el mapa.<br>La distancia se mide en píxeles del mapa.</div>
+  <div class="hint">Seleccioná un personaje del que seas dueño.<br>La distancia se mide en píxeles del mapa.</div>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@1";
 
 const status = document.getElementById("status");
 const stepInput = document.getElementById("step");
 let ready = false;
+
 OBR.onReady(async () => {
   ready = true;
   await refreshStatus();
   OBR.player.onChange(() => refreshStatus());
 });
 
+async function canControlItem(item) {
+  const role = await OBR.player.getRole();
+  if (role === "GM") return true;
+  const playerId = OBR.player.id;
+  return item.createdUserId === playerId;
+}
+
 async function refreshStatus() {
   try {
-    const selection = await OBR.player.getSelection();
-    status.textContent = selection?.length
-      ? `${selection.length} token(s) seleccionado(s)`
-      : "Seleccioná tu personaje en el mapa";
+    const ids = await OBR.player.getSelection();
+    if (!ids || ids.length === 0) {
+      status.textContent = "Seleccioná tu personaje en el mapa";
+      return;
+    }
+    const items = await OBR.scene.items.getItems(ids);
+    let owned = 0;
+    for (const item of items) {
+      if (await canControlItem(item)) owned++;
+    }
+    if (owned === 0) {
+      status.textContent = "Ningún token seleccionado es tuyo (ownership)";
+    } else if (owned < items.length) {
+      status.textContent = `${owned} de ${items.length} token(s) con ownership`;
+    } else {
+      status.textContent = `${owned} token(s) seleccionado(s)`;
+    }
   } catch (e) {
     status.textContent = "No se pudo leer la selección. Abrí este panel desde Owlbear.";
   }
@@ -67,18 +88,30 @@ async function move(dx, dy) {
       status.textContent = "Primero seleccioná un token en el mapa.";
       return;
     }
+
+    const items = await OBR.scene.items.getItems(ids);
+    const movableIds = [];
+    for (const item of items) {
+      if (item.locked) continue;
+      if (await canControlItem(item)) movableIds.push(item.id);
+    }
+
+    if (movableIds.length === 0) {
+      status.textContent = "No tenés ownership de los tokens seleccionados.";
+      return;
+    }
+
     const distance = Math.max(1, Math.min(500, Number(stepInput.value) || 50));
     await OBR.scene.items.updateItems(
-      item => ids.includes(item.id),
-      items => {
-        for (const item of items) {
-          if (item.locked) continue;
+      item => movableIds.includes(item.id),
+      draft => {
+        for (const item of draft) {
           item.position.x += dx * distance;
           item.position.y += dy * distance;
         }
       }
     );
-    status.textContent = `Movido ${distance} px · ${ids.length} token(s)`;
+    status.textContent = `Movido ${distance} px · ${movableIds.length} token(s)`;
   } catch (e) {
     console.error(e);
     status.textContent = "No se pudo mover. Verificá los permisos del token.";
