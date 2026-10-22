@@ -10,9 +10,6 @@
   body { margin:0; padding:16px; background:var(--bg); color:#f4f6fa; font:14px system-ui,-apple-system,Segoe UI,sans-serif; }
   h1 { font-size:18px; margin:0 0 5px; text-align:center; }
   .sub { text-align:center; color:#b6c0d0; font-size:12px; margin-bottom:14px; }
-  .settings { background:var(--panel); border-radius:12px; padding:10px; margin-bottom:14px; }
-  label { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; color:#dce3ef; }
-  input { width:75px; background:#11151d; border:1px solid #4b5668; color:white; border-radius:7px; padding:6px; }
   .pad { display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(3,58px); gap:7px; justify-content:center; }
   button { border:1px solid #4b5870; border-radius:12px; background:var(--button); color:white; font-size:25px; cursor:pointer; box-shadow:0 3px 0 #0b0e13; touch-action:manipulation; }
   button:hover { background:var(--hover); }
@@ -26,21 +23,18 @@
 <body>
   <h1>🕹️ D-Pad</h1>
   <div class="sub">Movimiento de personajes</div>
-  <div class="settings">
-    <label for="step">Distancia por pulsación <input id="step" type="number" min="1" max="500" value="50"></label>
-  </div>
   <div class="pad" aria-label="Control direccional">
     <div class="empty"></div><button data-dy="-1" aria-label="Arriba">▲</button><div class="empty"></div>
     <button data-dx="-1" aria-label="Izquierda">◀</button><button class="center" id="center" title="No mueve">●</button><button data-dx="1" aria-label="Derecha">▶</button>
     <div class="empty"></div><button data-dy="1" aria-label="Abajo">▼</button><div class="empty"></div>
   </div>
   <div id="status">Conectando con Owlbear Rodeo…</div>
-  <div class="hint">Seleccioná un personaje del que seas dueño.<br>La distancia se mide en píxeles del mapa.</div>
+  <div class="hint">Seleccioná un personaje del que seas dueño.<br>Cada pulsación mueve 150 px del mapa.</div>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@1";
 
 const status = document.getElementById("status");
-const stepInput = document.getElementById("step");
+const DISTANCE = 150;
 let ready = false;
 
 OBR.onReady(async () => {
@@ -101,17 +95,16 @@ async function move(dx, dy) {
       return;
     }
 
-    const distance = Math.max(1, Math.min(500, Number(stepInput.value) || 50));
     await OBR.scene.items.updateItems(
       item => movableIds.includes(item.id),
       draft => {
         for (const item of draft) {
-          item.position.x += dx * distance;
-          item.position.y += dy * distance;
+          item.position.x += dx * DISTANCE;
+          item.position.y += dy * DISTANCE;
         }
       }
     );
-    status.textContent = `Movido ${distance} px · ${movableIds.length} token(s)`;
+    status.textContent = `Movido ${DISTANCE} px · ${movableIds.length} token(s)`;
   } catch (e) {
     console.error(e);
     status.textContent = "No se pudo mover. Verificá los permisos del token.";
