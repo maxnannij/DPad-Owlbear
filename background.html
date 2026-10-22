@@ -21,6 +21,14 @@ function sideFromStorage() {
   }
 }
 
+function isCollapsed() {
+  try {
+    return localStorage.getItem("dpad-collapsed") === "1";
+  } catch {
+    return false;
+  }
+}
+
 function popoverOptions(side) {
   const isRight = side === "right";
   return {
@@ -40,7 +48,6 @@ function popoverOptions(side) {
     },
     marginThreshold: 12,
     disableClickAway: true,
-    hidePaper: false,
   };
 }
 
@@ -52,15 +59,16 @@ async function openFloat(side) {
 }
 
 OBR.onReady(async () => {
-  await openFloat();
+  if (!isCollapsed()) {
+    await openFloat();
+  }
 
-  window.addEventListener("message", async (event) => {
-    if (!event.data || event.data.type !== "dpad-set-side") return;
-    const side = event.data.side === "right" ? "right" : "left";
+  // Si el usuario abre el action del D-Pad, ofrecemos reabrir el flotante
+  OBR.action.onOpenChange(async (isOpen) => {
+    if (!isOpen) return;
     try {
-      localStorage.setItem("dpad-side", side);
+      localStorage.setItem("dpad-collapsed", "0");
     } catch (_) {}
-    await openFloat(side);
   });
 });
 </script>

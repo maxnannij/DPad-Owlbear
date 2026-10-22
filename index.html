@@ -8,7 +8,12 @@
   :root { color-scheme: dark; --bg:#151922; --panel:#202633; --button:#303b4d; --hover:#43536b; --accent:#8fb8ff; }
   * { box-sizing:border-box; }
   body { margin:0; padding:12px; background:var(--bg); color:#f4f6fa; font:13px system-ui,-apple-system,Segoe UI,sans-serif; }
-  h1 { font-size:16px; margin:0 0 4px; text-align:center; }
+  .header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+  .header h1 { font-size:16px; margin:0; flex:1; text-align:center; }
+  .collapse {
+    width:28px; height:28px; border-radius:8px; font-size:16px; line-height:1;
+    padding:0; box-shadow:none; border:1px solid #4b5870; flex-shrink:0;
+  }
   .sub { text-align:center; color:#b6c0d0; font-size:11px; margin-bottom:10px; }
   .pad { display:grid; grid-template-columns:repeat(3,58px); grid-template-rows:repeat(3,52px); gap:6px; justify-content:center; }
   button { border:1px solid #4b5870; border-radius:12px; background:var(--button); color:white; font-size:22px; cursor:pointer; box-shadow:0 3px 0 #0b0e13; touch-action:manipulation; }
@@ -27,7 +32,11 @@
 </style>
 </head>
 <body>
-  <h1>🕹️ D-Pad</h1>
+  <div class="header">
+    <span style="width:28px"></span>
+    <h1>🕹️ D-Pad</h1>
+    <button type="button" class="collapse" id="collapse" title="Colapsar (ocultar panel)">−</button>
+  </div>
   <div class="sub">150 px por pulsación</div>
   <div class="pad" aria-label="Control direccional">
     <div class="empty"></div><button data-dy="-1" aria-label="Arriba">▲</button><div class="empty"></div>
@@ -39,7 +48,7 @@
     <button type="button" id="side-left" title="Anclar abajo a la izquierda">◀ Izquierda</button>
     <button type="button" id="side-right" title="Anclar abajo a la derecha">Derecha ▶</button>
   </div>
-  <div class="hint">Solo tokens con ownership.<br>Elegí el lado para la ventana flotante.</div>
+  <div class="hint">Solo tokens con ownership.<br>Colapsá con − y volvé a abrir desde el ícono D-Pad.</div>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@1";
 
@@ -57,6 +66,12 @@ function getSide() {
   } catch {
     return "left";
   }
+}
+
+function setCollapsed(value) {
+  try {
+    localStorage.setItem("dpad-collapsed", value ? "1" : "0");
+  } catch (_) {}
 }
 
 function setSide(side) {
@@ -91,10 +106,21 @@ function popoverOptions(side) {
 
 async function dockTo(side) {
   setSide(side);
+  setCollapsed(false);
   try {
     await OBR.popover.close(POPOVER_ID);
   } catch (_) {}
   await OBR.popover.open(popoverOptions(side));
+}
+
+async function collapse() {
+  setCollapsed(true);
+  try {
+    await OBR.popover.close(POPOVER_ID);
+  } catch (_) {}
+  try {
+    await OBR.action.close();
+  } catch (_) {}
 }
 
 OBR.onReady(async () => {
@@ -181,6 +207,7 @@ document.getElementById("center").addEventListener("click", () => {
 });
 document.getElementById("side-left").addEventListener("click", () => dockTo("left"));
 document.getElementById("side-right").addEventListener("click", () => dockTo("right"));
+document.getElementById("collapse").addEventListener("click", () => collapse());
 </script>
 </body>
 </html>
