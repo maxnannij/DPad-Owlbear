@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>D-Pad background</title>
+</head>
+<body>
+<script type="module">
+import OBR from "https://esm.sh/@owlbear-rodeo/sdk@1";
+
+const POPOVER_ID = "com.maxnanni.dpad/float";
+const URL = "https://maxnannij.github.io/DPad-Owlbear/index.html";
+const WIDTH = 230;
+const HEIGHT = 300;
+
+function sideFromStorage() {
+  try {
+    return localStorage.getItem("dpad-side") === "right" ? "right" : "left";
+  } catch {
+    return "left";
+  }
+}
+
+function popoverOptions(side) {
+  const isRight = side === "right";
+  return {
+    id: POPOVER_ID,
+    url: URL,
+    width: WIDTH,
+    height: HEIGHT,
+    anchorReference: "POSITION",
+    anchorPosition: { left: isRight ? 10000 : 16, top: 10000 },
+    anchorOrigin: {
+      horizontal: isRight ? "RIGHT" : "LEFT",
+      vertical: "BOTTOM",
+    },
+    transformOrigin: {
+      horizontal: isRight ? "RIGHT" : "LEFT",
+      vertical: "BOTTOM",
+    },
+    marginThreshold: 12,
+    disableClickAway: true,
+    hidePaper: false,
+  };
+}
+
+async function openFloat(side) {
+  try {
+    await OBR.popover.close(POPOVER_ID);
+  } catch (_) {}
+  await OBR.popover.open(popoverOptions(side || sideFromStorage()));
+}
+
+OBR.onReady(async () => {
+  await openFloat();
+
+  window.addEventListener("message", async (event) => {
+    if (!event.data || event.data.type !== "dpad-set-side") return;
+    const side = event.data.side === "right" ? "right" : "left";
+    try {
+      localStorage.setItem("dpad-side", side);
+    } catch (_) {}
+    await openFloat(side);
+  });
+});
+</script>
+</body>
+</html>
