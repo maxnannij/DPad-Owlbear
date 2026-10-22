@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D-Pad para Owlbear</title>
+<style>
+  :root { color-scheme: dark; --bg:#151922; --panel:#202633; --button:#303b4d; --hover:#43536b; --accent:#8fb8ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:#f4f6fa; font:14px system-ui,-apple-system,Segoe UI,sans-serif; }
+  h1 { font-size:18px; margin:0 0 5px; text-align:center; }
+  .sub { text-align:center; color:#b6c0d0; font-size:12px; margin-bottom:14px; }
+  .settings { background:var(--panel); border-radius:12px; padding:10px; margin-bottom:14px; }
+  label { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; color:#dce3ef; }
+  input { width:75px; background:#11151d; border:1px solid #4b5668; color:white; border-radius:7px; padding:6px; }
+  .pad { display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(3,58px); gap:7px; justify-content:center; }
+  button { border:1px solid #4b5870; border-radius:12px; background:var(--button); color:white; font-size:25px; cursor:pointer; box-shadow:0 3px 0 #0b0e13; touch-action:manipulation; }
+  button:hover { background:var(--hover); }
+  button:active { transform:translateY(2px); box-shadow:0 1px 0 #0b0e13; }
+  .empty { visibility:hidden; }
+  .center { font-size:18px; color:var(--accent); }
+  #status { min-height:34px; margin-top:14px; padding:9px; border-radius:9px; background:var(--panel); color:#c7d0df; font-size:12px; text-align:center; }
+  .hint { color:#909caf; font-size:11px; text-align:center; margin-top:10px; line-height:1.4; }
+</style>
+</head>
+<body>
+  <h1>🕹️ D-Pad</h1>
+  <div class="sub">Movimiento de personajes</div>
+  <div class="settings">
+    <label for="step">Distancia por pulsación <input id="step" type="number" min="1" max="500" value="50"></label>
+  </div>
+  <div class="pad" aria-label="Control direccional">
+    <div class="empty"></div><button data-dy="-1" aria-label="Arriba">▲</button><div class="empty"></div>
+    <button data-dx="-1" aria-label="Izquierda">◀</button><button class="center" id="center" title="No mueve">●</button><button data-dx="1" aria-label="Derecha">▶</button>
+    <div class="empty"></div><button data-dy="1" aria-label="Abajo">▼</button><div class="empty"></div>
+  </div>
+  <div id="status">Conectando con Owlbear Rodeo…</div>
+  <div class="hint">Seleccioná primero tu personaje en el mapa.<br>La distancia se mide en píxeles del mapa.</div>
+<script type="module">
+import OBR from "https://esm.sh/@owlbear-rodeo/sdk@1";
+
+const status = document.getElementById("status");
+const stepInput = document.getElementById("step");
+let ready = false;
+OBR.onReady(async () => {
+  ready = true;
+  await refreshStatus();
+  OBR.player.onChange(() => refreshStatus());
+});
+
+async function refreshStatus() {
+  try {
+    const selection = await OBR.player.getSelection();
+    status.textContent = selection?.length
+      ? `${selection.length} token(s) seleccionado(s)`
+      : "Seleccioná tu personaje en el mapa";
+  } catch (e) {
+    status.textContent = "No se pudo leer la selección. Abrí este panel desde Owlbear.";
+  }
+}
+
+async function move(dx, dy) {
+  if (!ready) return;
+  try {
+    const ids = await OBR.player.getSelection();
+    if (!ids || ids.length === 0) {
+      status.textContent = "Primero seleccioná un token en el mapa.";
+      return;
+    }
+    const distance = Math.max(1, Math.min(500, Number(stepInput.value) || 50));
+    await OBR.scene.items.updateItems(
+      item => ids.includes(item.id),
+      items => {
+        for (const item of items) {
+          if (item.locked) continue;
+          item.position.x += dx * distance;
+          item.position.y += dy * distance;
+        }
+      }
+    );
+    status.textContent = `Movido ${distance} px · ${ids.length} token(s)`;
+  } catch (e) {
+    console.error(e);
+    status.textContent = "No se pudo mover. Verificá los permisos del token.";
+  }
+}
+
+document.querySelectorAll("button[data-dx],button[data-dy]").forEach(button => {
+  button.addEventListener("click", () => {
+    move(Number(button.dataset.dx || 0), Number(button.dataset.dy || 0));
+  });
+});
+document.getElementById("center").addEventListener("click", () => {
+  status.textContent = "Seleccioná una flecha para mover el personaje.";
+});
+</script>
+</body>
+</html>

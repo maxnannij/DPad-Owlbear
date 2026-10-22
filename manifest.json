@@ -1,0 +1,14 @@
+{
+  "name": "D-Pad para Owlbear",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "description": "Mueve los tokens seleccionados con un D-Pad visual.",
+  "author": "Personal",
+  "action": {
+    "title": "D-Pad",
+    "icon": "icon.svg",
+    "popover": "index.html",
+    "width": 250,
+    "height": 340
+  }
+}
