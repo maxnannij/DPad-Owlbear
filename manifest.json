@@ -6,8 +6,8 @@
   "author": "Personal",
   "action": {
     "title": "D-Pad",
-    "icon": "icon.svg",
-    "popover": "index.html",
+    "icon": "https://maxnannij.github.io/DPad-Owlbear/icon.svg",
+    "popover": "https://maxnannij.github.io/DPad-Owlbear/index.html",
     "width": 250,
     "height": 340
   }
