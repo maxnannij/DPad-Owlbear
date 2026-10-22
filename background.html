@@ -10,8 +10,10 @@ import OBR from "https://esm.sh/@owlbear-rodeo/sdk@1";
 
 const POPOVER_ID = "com.maxnanni.dpad/float";
 const URL = "https://maxnannij.github.io/DPad-Owlbear/index.html";
-const WIDTH = 230;
-const HEIGHT = 300;
+const FULL_W = 230;
+const FULL_H = 300;
+const MINI_W = 52;
+const MINI_H = 52;
 
 function sideFromStorage() {
   try {
@@ -21,21 +23,21 @@ function sideFromStorage() {
   }
 }
 
-function isCollapsed() {
+function isMinimized() {
   try {
-    return localStorage.getItem("dpad-collapsed") === "1";
+    return localStorage.getItem("dpad-minimized") === "1";
   } catch {
     return false;
   }
 }
 
-function popoverOptions(side) {
+function popoverOptions(side, minimized) {
   const isRight = side === "right";
   return {
     id: POPOVER_ID,
     url: URL,
-    width: WIDTH,
-    height: HEIGHT,
+    width: minimized ? MINI_W : FULL_W,
+    height: minimized ? MINI_H : FULL_H,
     anchorReference: "POSITION",
     anchorPosition: { left: isRight ? 10000 : 16, top: 10000 },
     anchorOrigin: {
@@ -51,25 +53,13 @@ function popoverOptions(side) {
   };
 }
 
-async function openFloat(side) {
+OBR.onReady(async () => {
+  const side = sideFromStorage();
+  const minimized = isMinimized();
   try {
     await OBR.popover.close(POPOVER_ID);
   } catch (_) {}
-  await OBR.popover.open(popoverOptions(side || sideFromStorage()));
-}
-
-OBR.onReady(async () => {
-  if (!isCollapsed()) {
-    await openFloat();
-  }
-
-  // Si el usuario abre el action del D-Pad, ofrecemos reabrir el flotante
-  OBR.action.onOpenChange(async (isOpen) => {
-    if (!isOpen) return;
-    try {
-      localStorage.setItem("dpad-collapsed", "0");
-    } catch (_) {}
-  });
+  await OBR.popover.open(popoverOptions(side, minimized));
 });
 </script>
 </body>

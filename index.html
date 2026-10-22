@@ -7,10 +7,37 @@
 <style>
   :root { color-scheme: dark; --bg:#151922; --panel:#202633; --button:#303b4d; --hover:#43536b; --accent:#8fb8ff; }
   * { box-sizing:border-box; }
-  body { margin:0; padding:12px; background:var(--bg); color:#f4f6fa; font:13px system-ui,-apple-system,Segoe UI,sans-serif; }
+  html, body { margin:0; height:100%; background:var(--bg); color:#f4f6fa; font:13px system-ui,-apple-system,Segoe UI,sans-serif; }
+  body { padding:12px; }
+
+  /* Vista minimizada */
+  body.minimized {
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  body.minimized .full { display:none; }
+  body.minimized .mini {
+    display:flex;
+    width:100%;
+    height:100%;
+    border:none;
+    border-radius:0;
+    background:var(--panel);
+    color:var(--accent);
+    font-size:22px;
+    cursor:pointer;
+    box-shadow:none;
+    align-items:center;
+    justify-content:center;
+  }
+  .mini { display:none; }
+
   .header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
   .header h1 { font-size:16px; margin:0; flex:1; text-align:center; }
-  .collapse {
+  .icon-btn {
     width:28px; height:28px; border-radius:8px; font-size:16px; line-height:1;
     padding:0; box-shadow:none; border:1px solid #4b5870; flex-shrink:0;
   }
@@ -32,23 +59,28 @@
 </style>
 </head>
 <body>
-  <div class="header">
-    <span style="width:28px"></span>
-    <h1>🕹️ D-Pad</h1>
-    <button type="button" class="collapse" id="collapse" title="Colapsar (ocultar panel)">−</button>
+  <button type="button" class="mini" id="expand" title="Expandir D-Pad">🕹️</button>
+
+  <div class="full">
+    <div class="header">
+      <span style="width:28px"></span>
+      <h1>🕹️ D-Pad</h1>
+      <button type="button" class="icon-btn" id="minimize" title="Minimizar">−</button>
+    </div>
+    <div class="sub">150 px por pulsación</div>
+    <div class="pad" aria-label="Control direccional">
+      <div class="empty"></div><button data-dy="-1" aria-label="Arriba">▲</button><div class="empty"></div>
+      <button data-dx="-1" aria-label="Izquierda">◀</button><button class="center" id="center" title="No mueve">●</button><button data-dx="1" aria-label="Derecha">▶</button>
+      <div class="empty"></div><button data-dy="1" aria-label="Abajo">▼</button><div class="empty"></div>
+    </div>
+    <div id="status">Conectando con Owlbear Rodeo…</div>
+    <div class="dock">
+      <button type="button" id="side-left" title="Anclar abajo a la izquierda">◀ Izquierda</button>
+      <button type="button" id="side-right" title="Anclar abajo a la derecha">Derecha ▶</button>
+    </div>
+    <div class="hint">Solo tokens con ownership.<br>Minimizar con −; tocá el ícono para expandir.</div>
   </div>
-  <div class="sub">150 px por pulsación</div>
-  <div class="pad" aria-label="Control direccional">
-    <div class="empty"></div><button data-dy="-1" aria-label="Arriba">▲</button><div class="empty"></div>
-    <button data-dx="-1" aria-label="Izquierda">◀</button><button class="center" id="center" title="No mueve">●</button><button data-dx="1" aria-label="Derecha">▶</button>
-    <div class="empty"></div><button data-dy="1" aria-label="Abajo">▼</button><div class="empty"></div>
-  </div>
-  <div id="status">Conectando con Owlbear Rodeo…</div>
-  <div class="dock">
-    <button type="button" id="side-left" title="Anclar abajo a la izquierda">◀ Izquierda</button>
-    <button type="button" id="side-right" title="Anclar abajo a la derecha">Derecha ▶</button>
-  </div>
-  <div class="hint">Solo tokens con ownership.<br>Colapsá con − y volvé a abrir desde el ícono D-Pad.</div>
+
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@1";
 
@@ -56,8 +88,10 @@ const status = document.getElementById("status");
 const DISTANCE = 150;
 const POPOVER_ID = "com.maxnanni.dpad/float";
 const URL = "https://maxnannij.github.io/DPad-Owlbear/index.html";
-const WIDTH = 230;
-const HEIGHT = 300;
+const FULL_W = 230;
+const FULL_H = 300;
+const MINI_W = 52;
+const MINI_H = 52;
 let ready = false;
 
 function getSide() {
@@ -68,9 +102,17 @@ function getSide() {
   }
 }
 
-function setCollapsed(value) {
+function isMinimized() {
   try {
-    localStorage.setItem("dpad-collapsed", value ? "1" : "0");
+    return localStorage.getItem("dpad-minimized") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setMinimizedFlag(value) {
+  try {
+    localStorage.setItem("dpad-minimized", value ? "1" : "0");
   } catch (_) {}
 }
 
@@ -78,17 +120,19 @@ function setSide(side) {
   try {
     localStorage.setItem("dpad-side", side);
   } catch (_) {}
-  document.getElementById("side-left").classList.toggle("active", side === "left");
-  document.getElementById("side-right").classList.toggle("active", side === "right");
+  const left = document.getElementById("side-left");
+  const right = document.getElementById("side-right");
+  if (left) left.classList.toggle("active", side === "left");
+  if (right) right.classList.toggle("active", side === "right");
 }
 
-function popoverOptions(side) {
+function popoverOptions(side, minimized) {
   const isRight = side === "right";
   return {
     id: POPOVER_ID,
     url: URL,
-    width: WIDTH,
-    height: HEIGHT,
+    width: minimized ? MINI_W : FULL_W,
+    height: minimized ? MINI_H : FULL_H,
     anchorReference: "POSITION",
     anchorPosition: { left: isRight ? 10000 : 16, top: 10000 },
     anchorOrigin: {
@@ -104,28 +148,48 @@ function popoverOptions(side) {
   };
 }
 
-async function dockTo(side) {
-  setSide(side);
-  setCollapsed(false);
+async function applySize(minimized) {
+  document.body.classList.toggle("minimized", minimized);
+  setMinimizedFlag(minimized);
   try {
-    await OBR.popover.close(POPOVER_ID);
-  } catch (_) {}
-  await OBR.popover.open(popoverOptions(side));
+    if (minimized) {
+      await OBR.popover.setWidth(POPOVER_ID, MINI_W);
+      await OBR.popover.setHeight(POPOVER_ID, MINI_H);
+    } else {
+      await OBR.popover.setWidth(POPOVER_ID, FULL_W);
+      await OBR.popover.setHeight(POPOVER_ID, FULL_H);
+    }
+  } catch (e) {
+    // Si no estamos en el popover flotante (p.ej. action), reabrimos flotante
+    const side = getSide();
+    try { await OBR.popover.close(POPOVER_ID); } catch (_) {}
+    await OBR.popover.open(popoverOptions(side, minimized));
+  }
 }
 
-async function collapse() {
-  setCollapsed(true);
-  try {
-    await OBR.popover.close(POPOVER_ID);
-  } catch (_) {}
-  try {
-    await OBR.action.close();
-  } catch (_) {}
+async function dockTo(side) {
+  setSide(side);
+  setMinimizedFlag(false);
+  document.body.classList.remove("minimized");
+  try { await OBR.popover.close(POPOVER_ID); } catch (_) {}
+  await OBR.popover.open(popoverOptions(side, false));
 }
 
 OBR.onReady(async () => {
   ready = true;
   setSide(getSide());
+  const mini = isMinimized();
+  document.body.classList.toggle("minimized", mini);
+  // Ajustar tamaño del popover al estado guardado
+  try {
+    if (mini) {
+      await OBR.popover.setWidth(POPOVER_ID, MINI_W);
+      await OBR.popover.setHeight(POPOVER_ID, MINI_H);
+    } else {
+      await OBR.popover.setWidth(POPOVER_ID, FULL_W);
+      await OBR.popover.setHeight(POPOVER_ID, FULL_H);
+    }
+  } catch (_) {}
   await refreshStatus();
   OBR.player.onChange(() => refreshStatus());
 });
@@ -207,7 +271,8 @@ document.getElementById("center").addEventListener("click", () => {
 });
 document.getElementById("side-left").addEventListener("click", () => dockTo("left"));
 document.getElementById("side-right").addEventListener("click", () => dockTo("right"));
-document.getElementById("collapse").addEventListener("click", () => collapse());
+document.getElementById("minimize").addEventListener("click", () => applySize(true));
+document.getElementById("expand").addEventListener("click", () => applySize(false));
 </script>
 </body>
 </html>
